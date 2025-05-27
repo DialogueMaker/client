@@ -12,7 +12,7 @@ type Dialogue = IDialogue.Dialogue;
 type DialogueClient = IDialogueClient.DialogueClient;
 type DialogueClientSettings = IDialogueClient.DialogueClientSettings;
 type DialogueServer = IDialogueServer.DialogueServer;
-type OptionalDialogueClientSettings = IDialogueClient.OptionalDialogueClientSettings;
+type ConstructorDialogueClientSettings = IDialogueClient.ConstructorDialogueClientSettings;
 
 local DialogueClient = {
   sharedDialogueClient = nil :: DialogueClient?;
@@ -53,7 +53,7 @@ function DialogueClient:setSharedDialogueClient(dialogueClient: DialogueClient?)
 
 end;
 
-function DialogueClient.new(dialogueClientSettings: {general: {[any]: any, theme: ModuleScript}} & OptionalDialogueClientSettings): DialogueClient
+function DialogueClient.new(dialogueClientSettings: ConstructorDialogueClientSettings): DialogueClient
 
   local player = Players.LocalPlayer;
   local settings: DialogueClientSettings = {

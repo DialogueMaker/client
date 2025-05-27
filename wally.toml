@@ -1,6 +1,6 @@
 [package]
 name = "dialoguemaker/dialogue-client"
-version = "0.1.0-patch-1"
+version = "0.1.0-patch-2"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 repository = "https://github.com/DialogueMaker/dialogue-client"
@@ -9,7 +9,7 @@ include = ["src", "src/**/*.lua", "wally.toml", "default.project.json"]
 exclude = ["**"]
 
 [dependencies]
-dialogue-client-types = "dialoguemaker/dialogue-client-types@0.1.0-patch-1"
+dialogue-client-types = "dialoguemaker/dialogue-client-types@0.1.0-patch-2"
 dialogue-server-types = "dialoguemaker/dialogue-server-types@0.1.0-patch-1"
 dialogue-types = "dialoguemaker/dialogue-types@0.1.0-patch-2"
 react = "jsdotlua/react@17.2.1"

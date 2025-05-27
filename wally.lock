@@ -5,11 +5,11 @@ registry = "test"
 [[package]]
 name = "dialoguemaker/dialogue-client"
 version = "0.1.0-patch-1"
-dependencies = [["dialogue-client-types", "dialoguemaker/dialogue-client-types@0.1.0-patch-1"], ["dialogue-server-types", "dialoguemaker/dialogue-server-types@0.1.0-patch-1"], ["dialogue-types", "dialoguemaker/dialogue-types@0.1.0-patch-2"], ["react", "jsdotlua/react@17.2.1"], ["react-roblox", "jsdotlua/react-roblox@17.2.1"]]
+dependencies = [["dialogue-client-types", "dialoguemaker/dialogue-client-types@0.1.0-patch-2"], ["dialogue-server-types", "dialoguemaker/dialogue-server-types@0.1.0-patch-1"], ["dialogue-types", "dialoguemaker/dialogue-types@0.1.0-patch-2"], ["react", "jsdotlua/react@17.2.1"], ["react-roblox", "jsdotlua/react-roblox@17.2.1"]]
 
 [[package]]
 name = "dialoguemaker/dialogue-client-types"
-version = "0.1.0-patch-1"
+version = "0.1.0-patch-2"
 dependencies = [["dialogue-server-types", "dialoguemaker/dialogue-server-types@0.1.0-patch-1"]]
 
 [[package]]
