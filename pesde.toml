@@ -1,5 +1,5 @@
 name = "dialoguemaker/dialogue_client"
-version = "0.1.0-patch-1"
+version = "0.1.0-patch-2"
 description = ""
 authors = ["Christian Toney <christian.toney@beastslash.com>"]
 repository = "https://github.com/DialogueMaker/dialogue_client"
@@ -8,7 +8,7 @@ includes = [
   "pesde.toml",
   "README.md",
   "LICENSE",
-  "src/**/*.lua",
+  "src/**/*.lua"
 ]
 
 [target]
@@ -36,9 +36,11 @@ rojo = { name = "pesde/rojo", version = "^7.4.4", target = "lune" }
 darklua = { name = "pesde/darklua", version = "^0.16.0", target = "lune" }
 luau_lsp = { name = "pesde/luau_lsp", version = "^1.47.0", target = "lune" }
 
-[dependencies]
-dialogue_server_types = { name = "dialoguemaker/dialogue_server_types", version = "^0.1.0-patch-2" }
-dialogue_types = { name = "dialoguemaker/dialogue_types", version = "^0.1.0-patch-2" }
-dialogue_client_types = { name = "dialoguemaker/dialogue_client_types", version = "^0.1.0-patch-1" }
+[peer_dependencies]
 react = { wally = "jsdotlua/react", version = "^17.2.1" }
 react-roblox = { wally = "jsdotlua/react-roblox", version = "^17.2.1" }
+
+[dependencies]
+dialogue_server_types = { name = "dialoguemaker/dialogue_server_types", version = "^0.1.0-patch-4" }
+dialogue_types = { name = "dialoguemaker/dialogue_types", version = "^0.1.0-patch-7" }
+dialogue_client_types = { name = "dialoguemaker/dialogue_client_types", version = "^0.1.0-patch-3" }

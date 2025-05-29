@@ -1,6 +1,14 @@
 {
-  "name": "dialogue_client",
+  "name": "DialogueClient",
   "tree": {
-    "$path": "src"
+    "$className": "Folder",
+    "roblox_packages": {
+      "$path": {
+        "optional": "roblox_packages"
+      }
+    },
+    "src": {
+      "$path": "src"
+    }
   }
 }

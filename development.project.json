@@ -1,9 +1,0 @@
-{
-  "name": "dialogue_client",
-  "tree": {
-    "$path": "roblox_packages",
-    "dialogue_client": {
-      "$path": "src"
-    }
-  }
-}
