@@ -1,8 +1,8 @@
-name = "dialoguemaker/dialogue_client"
-version = "0.1.0-patch-3"
+name = "dialoguemaker/client"
+version = "0.1.0-patch-1"
 description = ""
 authors = ["Christian Toney <christian.toney@beastslash.com>"]
-repository = "https://github.com/DialogueMaker/dialogue_client"
+repository = "https://github.com/DialogueMaker/client"
 license = "GPL-3.0"
 includes = [
   "pesde.toml",
@@ -40,6 +40,6 @@ react = { wally = "jsdotlua/react", version = "^17.2.1" }
 react-roblox = { wally = "jsdotlua/react-roblox", version = "^17.2.1" }
 
 [dependencies]
-dialogue_server_types = { name = "dialoguemaker/dialogue_server_types", version = "^0.1.0-patch-4" }
 dialogue_types = { name = "dialoguemaker/dialogue_types", version = "^0.1.0-patch-7" }
-dialogue_client_types = { name = "dialoguemaker/dialogue_client_types", version = "^0.1.0-patch-3" }
+conversation_types = { name = "dialoguemaker/conversation_types", version = "^0.1.0-patch-2" }
+client_types = { name = "dialoguemaker/client_types", version = "^0.1.0-patch-1" }

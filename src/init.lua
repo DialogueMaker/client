@@ -5,18 +5,18 @@ local Players = game:GetService("Players");
 local packages = script.Parent.roblox_packages;
 local React = require(packages.react);
 local ReactRoblox = require(packages["react-roblox"]);
-local IDialogueClient = require(packages.dialogue_client_types);
-local IDialogueServer = require(packages.dialogue_server_types);
+local IClient = require(packages.client_types);
+local IConversation = require(packages.conversation_types);
 local IDialogue = require(packages.dialogue_types);
 
 type Dialogue = IDialogue.Dialogue;
-type DialogueClient = IDialogueClient.DialogueClient;
-type DialogueClientSettings = IDialogueClient.DialogueClientSettings;
-type DialogueServer = IDialogueServer.DialogueServer;
-type ConstructorDialogueClientSettings = IDialogueClient.ConstructorDialogueClientSettings;
+type Client = IClient.Client;
+type ClientSettings = IClient.ClientSettings;
+type Conversation = IConversation.Conversation;
+type ConstructorClientSettings = IClient.ConstructorClientSettings;
 
-local DialogueClient = {
-  sharedDialogueClient = nil :: DialogueClient?;
+local Client = {
+  sharedClient = nil :: Client?;
   defaultSettings = {
     general = {
       shouldEndConversationOnCharacterRemoval = true;
@@ -28,80 +28,81 @@ local DialogueClient = {
       interactKey = nil;
       interactKeyGamepad = nil;
     };
-  } :: DialogueClientSettings;
+  } :: ClientSettings;
 };
 
-function DialogueClient:waitForSharedDialogueClient(): DialogueClient
+function Client:waitForSharedClient(): Client
 
-  repeat task.wait() until DialogueClient.sharedDialogueClient;
+  repeat task.wait() until Client.sharedClient;
 
-  return self:getSharedDialogueClient();
-
-end;
-
-function DialogueClient:getSharedDialogueClient(): DialogueClient
-
-  assert(DialogueClient.sharedDialogueClient, "[Dialogue Maker] Shared dialogue client not set.");
-
-  return DialogueClient.sharedDialogueClient;
+  return self:getSharedClient();
 
 end;
 
-function DialogueClient:setSharedDialogueClient(dialogueClient: DialogueClient?): ()
+function Client:getSharedClient(): Client
 
-  assert(not DialogueClient.sharedDialogueClient, "[Dialogue Maker] Shared dialogue client already set.");
-  DialogueClient.sharedDialogueClient = dialogueClient;
+  assert(Client.sharedClient, "[Dialogue Maker] Shared dialogue client not set.");
+
+  return Client.sharedClient;
 
 end;
 
-function DialogueClient.new(dialogueClientSettings: ConstructorDialogueClientSettings): DialogueClient
+function Client:setSharedClient(client: Client?): ()
+
+  assert(not Client.sharedClient, "[Dialogue Maker] Shared dialogue client already set.");
+  Client.sharedClient = client;
+
+end;
+
+function Client.new(clientSettings: ConstructorClientSettings): Client
 
   local player = Players.LocalPlayer;
-  local settings: DialogueClientSettings = {
+  local conversation: Conversation? = nil;
+  local settings: ClientSettings = {
     general = {
-      theme = dialogueClientSettings.general.theme;
-      shouldEndConversationOnCharacterRemoval = if dialogueClientSettings and dialogueClientSettings.general and dialogueClientSettings.general.shouldEndConversationOnCharacterRemoval then dialogueClientSettings.general.shouldEndConversationOnCharacterRemoval else DialogueClient.defaultSettings.general.shouldEndConversationOnCharacterRemoval;
+      theme = clientSettings.general.theme;
+      shouldEndConversationOnCharacterRemoval = if clientSettings and clientSettings.general and clientSettings.general.shouldEndConversationOnCharacterRemoval then clientSettings.general.shouldEndConversationOnCharacterRemoval else Client.defaultSettings.general.shouldEndConversationOnCharacterRemoval;
     };
     responses = {
-      clickSound = if dialogueClientSettings and dialogueClientSettings.responses then dialogueClientSettings.responses.clickSound else DialogueClient.defaultSettings.responses.clickSound;
+      clickSound = if clientSettings and clientSettings.responses then clientSettings.responses.clickSound else Client.defaultSettings.responses.clickSound;
     };
     keybinds = {
-      interactKey = if dialogueClientSettings and dialogueClientSettings.keybinds then dialogueClientSettings.keybinds.interactKey else DialogueClient.defaultSettings.keybinds.interactKey; 
-      interactKeyGamepad = if dialogueClientSettings and dialogueClientSettings.keybinds then dialogueClientSettings.keybinds.interactKeyGamepad else DialogueClient.defaultSettings.keybinds.interactKeyGamepad; 
+      interactKey = if clientSettings and clientSettings.keybinds then clientSettings.keybinds.interactKey else Client.defaultSettings.keybinds.interactKey; 
+      interactKeyGamepad = if clientSettings and clientSettings.keybinds then clientSettings.keybinds.interactKeyGamepad else Client.defaultSettings.keybinds.interactKeyGamepad; 
     };
   };
 
   local settingsChangedEvent = Instance.new("BindableEvent");
-  local dialogueServerChangedEvent = Instance.new("BindableEvent");
+  local conversationChangedEvent = Instance.new("BindableEvent");
 
-  local function freezePlayer(self: DialogueClient): ()
+  local function freezePlayer(self: Client): ()
   
     (require(player.PlayerScripts:WaitForChild("PlayerModule")) :: any):GetControls():Disable();
     
   end;
 
-  local function getDialogueServer(self: DialogueClient): DialogueServer?
+  local function getConversation(self: Client): Conversation?
 
-    return self.dialogueServer;
-
-  end;
-
-  local function setDialogueServer(self: DialogueClient, dialogueServer: DialogueServer?): ()
-
-    self.dialogueServer = dialogueServer;
-    dialogueServerChangedEvent:Fire();
+    return conversation;
 
   end;
 
-  local function interact(self: DialogueClient, dialogueServer: DialogueServer)
+  local function setConversation(self: Client, newConversation: Conversation?): ()
+
+    conversation = newConversation;
+    conversationChangedEvent:Fire();
+
+  end;
+
+  local function interact(self: Client, newConversation: Conversation)
 
     -- Make sure we aren't already talking to an NPC
-    assert(not self.dialogueServer, "[Dialogue Maker] Cannot read dialogue because player is currently talking with another NPC.");
-    self:setDialogueServer(dialogueServer);
+    assert(not conversation, "[Dialogue Maker] Cannot read dialogue because player is currently talking with another NPC.");
+    self:setConversation(newConversation);
     
     -- Freeze the player if the dialogue server has a setting for it.
-    local dialogueServerSettings = dialogueServer:getSettings();
-    local shouldFreezePlayer = dialogueServerSettings.general.shouldFreezePlayer;
+    local conversationSettings = newConversation:getSettings();
+    local shouldFreezePlayer = conversationSettings.general.shouldFreezePlayer;
     if shouldFreezePlayer then 
 
       self:freezePlayer(); 
@@ -109,16 +110,16 @@ function DialogueClient.new(dialogueClientSettings: ConstructorDialogueClientSet
     end;
 
     -- Initialize the theme, then listen for changes
-    local themeModuleScript = dialogueServerSettings.general.theme or settings.general.theme;
+    local themeModuleScript = conversationSettings.general.theme or settings.general.theme;
     local dialogueGUI = Instance.new("ScreenGui");
     local root = ReactRoblox.createRoot(dialogueGUI);
     dialogueGUI.Parent = player.PlayerGui;
 
     -- Start the dialogue loop.
-    local queue = dialogueServer:getChildren();
+    local queue = newConversation:getChildren();
     local priorityIndex = 1;
 
-    while self.dialogueServer and task.wait() do
+    while conversation and task.wait() do
 
       local dialogue = queue[priorityIndex];
       if not dialogue then
@@ -180,8 +181,8 @@ function DialogueClient.new(dialogueClientSettings: ConstructorDialogueClientSet
               completionEvent:Fire(true);
     
             end;
-            dialogueClient = self;
-            dialogueServer = dialogueServer;
+            client = self;
+            conversation = conversation;
           }));
 
         end;
@@ -227,53 +228,53 @@ function DialogueClient.new(dialogueClientSettings: ConstructorDialogueClientSet
 
     root:unmount();
     dialogueGUI:Destroy();
-    self:setDialogueServer();
+    self:setConversation();
 
   end;
 
-  local function unfreezePlayer(self: DialogueClient): ()
+  local function unfreezePlayer(self: Client): ()
 
     (require(player.PlayerScripts:WaitForChild("PlayerModule")) :: any):GetControls():Enable();
     
   end;
 
-  local function getSettings(self: DialogueClient): DialogueClientSettings
+  local function getSettings(self: Client): ClientSettings
 
     return table.clone(settings);
 
   end;
 
-  local function setSettings(self: DialogueClient, newSettings: DialogueClientSettings): ()
+  local function setSettings(self: Client, newSettings: ClientSettings): ()
 
-    dialogueClientSettings = newSettings;
+    clientSettings = newSettings;
     settingsChangedEvent:Fire();
 
   end;
 
-  local dialogueClient: DialogueClient = {
+  local client: Client = {
     freezePlayer = freezePlayer;
     interact = interact;
     getSettings = getSettings;
     setSettings = setSettings;
     unfreezePlayer = unfreezePlayer;
-    getDialogueServer = getDialogueServer;
-    setDialogueServer = setDialogueServer;
+    getConversation = getConversation;
+    setConversation = setConversation;
     SettingsChanged = settingsChangedEvent.Event;
-    DialogueServerChanged = dialogueServerChangedEvent.Event;
+    ConversationChanged = conversationChangedEvent.Event;
   };
 
   player.CharacterRemoving:Connect(function()
 
-    dialogueClient.dialogueServer = nil;
+    conversation = nil;
 
   end);
 
-  dialogueClient.SettingsChanged:Connect(function()
+  client.SettingsChanged:Connect(function()
   
   end);
 
-  return dialogueClient;
+  return client;
 
 end;
 
-return DialogueClient;
+return Client;
