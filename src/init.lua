@@ -3,27 +3,20 @@
 local Players = game:GetService("Players");
 
 local packages = script.Parent.roblox_packages;
+local Conversation = require(packages.conversation);
 local React = require(packages.react);
 local ReactRoblox = require(packages["react-roblox"]);
-local IClient = require(packages.client_types);
-local IConversation = require(packages.conversation_types);
-local IDialogue = require(packages.dialogue_types);
+local DialogueMakerTypes = require(packages.dialogue_maker_types)
 
-type Dialogue = IDialogue.Dialogue;
-type Client = IClient.Client;
-type ClientSettings = IClient.ClientSettings;
-type Conversation = IConversation.Conversation;
-type ConstructorClientSettings = IClient.ConstructorClientSettings;
+type Dialogue = DialogueMakerTypes.Dialogue;
+type Client = DialogueMakerTypes.Client;
+type ClientSettings = DialogueMakerTypes.ClientSettings;
+type Conversation = DialogueMakerTypes.Conversation;
+type ConstructorClientSettings = DialogueMakerTypes.ConstructorClientSettings;
 
 local Client = {
   sharedClient = nil :: Client?;
   defaultSettings = {
-    general = {
-      shouldEndConversationOnCharacterRemoval = true;
-    };
-    responses = {
-      clickSound = nil;
-    };
     keybinds = {
       interactKey = nil;
       interactKeyGamepad = nil;
@@ -54,193 +47,117 @@ function Client:setSharedClient(client: Client?): ()
 
 end;
 
-function Client.new(clientSettings: ConstructorClientSettings): Client
+function Client.new(clientSettingOverrides: ConstructorClientSettings): Client
 
   local player = Players.LocalPlayer;
-  local conversation: Conversation? = nil;
-  local settings: ClientSettings = {
-    general = {
-      theme = clientSettings.general.theme;
-      shouldEndConversationOnCharacterRemoval = if clientSettings and clientSettings.general and clientSettings.general.shouldEndConversationOnCharacterRemoval then clientSettings.general.shouldEndConversationOnCharacterRemoval else Client.defaultSettings.general.shouldEndConversationOnCharacterRemoval;
-    };
-    responses = {
-      clickSound = if clientSettings and clientSettings.responses then clientSettings.responses.clickSound else Client.defaultSettings.responses.clickSound;
-    };
+  local clientSettings: ClientSettings = {
+    theme = clientSettingOverrides.theme;
     keybinds = {
-      interactKey = if clientSettings and clientSettings.keybinds then clientSettings.keybinds.interactKey else Client.defaultSettings.keybinds.interactKey; 
-      interactKeyGamepad = if clientSettings and clientSettings.keybinds then clientSettings.keybinds.interactKeyGamepad else Client.defaultSettings.keybinds.interactKeyGamepad; 
+      interactKey = if clientSettingOverrides and clientSettingOverrides.keybinds then clientSettingOverrides.keybinds.interactKey else Client.defaultSettings.keybinds.interactKey; 
+      interactKeyGamepad = if clientSettingOverrides and clientSettingOverrides.keybinds then clientSettingOverrides.keybinds.interactKeyGamepad else Client.defaultSettings.keybinds.interactKeyGamepad; 
     };
   };
 
   local settingsChangedEvent = Instance.new("BindableEvent");
-  local conversationChangedEvent = Instance.new("BindableEvent");
+  local dialogueChangedEvent = Instance.new("BindableEvent");
+  local continueDialogueFunction = Instance.new("BindableFunction");
 
-  local function freezePlayer(self: Client): ()
-  
-    (require(player.PlayerScripts:WaitForChild("PlayerModule")) :: any):GetControls():Disable();
-    
-  end;
+  local reactRoot: ReactRoblox.RootType? = nil;
+  local dialogueGUI: ScreenGui? = nil;
+  local dialogue: Dialogue? = nil;
 
-  local function getConversation(self: Client): Conversation?
+  local function continueDialogue(self: Client): ()
 
-    return conversation;
-
-  end;
-
-  local function setConversation(self: Client, newConversation: Conversation?): ()
-
-    conversation = newConversation;
-    conversationChangedEvent:Fire();
+    continueDialogueFunction:Invoke();
 
   end;
 
-  local function interact(self: Client, newConversation: Conversation)
+  local function cleanup(self: Client): ()
 
-    -- Make sure we aren't already talking to an NPC
-    assert(not conversation, "[Dialogue Maker] Cannot read dialogue because player is currently talking with another NPC.");
-    self:setConversation(newConversation);
-    
-    -- Freeze the player if the dialogue server has a setting for it.
-    local conversationSettings = newConversation:getSettings();
-    local shouldFreezePlayer = conversationSettings.general.shouldFreezePlayer;
-    if shouldFreezePlayer then 
+    if reactRoot then
 
-      self:freezePlayer(); 
+      reactRoot:unmount();
+      reactRoot = nil;
 
     end;
 
-    -- Initialize the theme, then listen for changes
-    local themeModuleScript = conversationSettings.general.theme or settings.general.theme;
-    local dialogueGUI = Instance.new("ScreenGui");
-    local root = ReactRoblox.createRoot(dialogueGUI);
-    dialogueGUI.Parent = player.PlayerGui;
+    if dialogueGUI then
 
-    -- Start the dialogue loop.
-    local queue = newConversation:getChildren();
-    local priorityIndex = 1;
-
-    while conversation and task.wait() do
-
-      local dialogue = queue[priorityIndex];
-      if not dialogue then
-
-        break;
-
-      end
-
-      if dialogue:verifyCondition() then
-        
-        if dialogue.redirectModuleScript then
-
-          local parent = dialogue.redirectModuleScript.Parent;
-          local parentDialogue = require(parent) :: Dialogue;
-          queue = parentDialogue:getChildren();
-          local newPriorityIndex: number? = nil;
-
-          for index, childDialogue in queue do
-
-            if childDialogue.moduleScript == dialogue.redirectModuleScript then
-
-              newPriorityIndex = index;
-              break;
-
-            end;
-
-          end;
-
-          assert(newPriorityIndex, "[Dialogue Maker] Could not find redirect dialogue in queue.");
-          priorityIndex = newPriorityIndex;
-          
-          continue;
-
-        end;
-        
-        -- Run the dialogue's initialization action.
-        dialogue:runAction(1);
-
-        -- Show the dialogue to the player.
-        local completionEvent = Instance.new("BindableEvent");
-        local function renderRoot()
-
-          root:render(React.createElement(require(themeModuleScript) :: any, {
-            dialogue = dialogue;
-            onComplete = function(newParent: Dialogue?)
-        
-              -- Run the dialogue's completion action.
-              dialogue:runAction(2);
-    
-              -- Continue through the dialogue tree.
-              local parent = newParent or dialogue;
-              queue = parent:getChildren();
-              priorityIndex = 1;
-              completionEvent:Fire(false);
-        
-            end;
-            onTimeout = function()
-    
-              completionEvent:Fire(true);
-    
-            end;
-            client = self;
-            conversation = conversation;
-          }));
-
-        end;
-
-        local settingsChangedSignal = self.SettingsChanged:Connect(function()
-
-          if settings.general.theme ~= themeModuleScript then
-
-            themeModuleScript = settings.general.theme;
-            renderRoot();
-
-          end;
-      
-        end);
-
-        renderRoot();
-        
-        local didTimeout = completionEvent.Event:Wait();
-        if didTimeout then
-
-          break;
-
-        end;
-
-        settingsChangedSignal:Disconnect();
-
-      else
-
-        -- There is a message; however, the player failed the condition.
-        -- Let's check if there's something else available.
-        priorityIndex += 1;
-
-      end;
+      dialogueGUI:Destroy();
+      dialogueGUI = nil;
 
     end;
-
-    -- No more dialogue to show, so let's clean up.
-    if freezePlayer then 
-
-      self:unfreezePlayer(); 
-
-    end;
-
-    root:unmount();
-    dialogueGUI:Destroy();
-    self:setConversation();
 
   end;
 
-  local function unfreezePlayer(self: Client): ()
+  local function getDialogue(self: Client): Dialogue?
 
-    (require(player.PlayerScripts:WaitForChild("PlayerModule")) :: any):GetControls():Enable();
-    
+    return dialogue;
+
+  end;
+
+  local function setDialogue(self: Client, newDialogue: Dialogue?): ()
+
+    if dialogue == newDialogue or (dialogue and newDialogue and dialogue.moduleScript == newDialogue.moduleScript) then
+
+      return;
+
+    end;
+
+    while newDialogue and newDialogue.type == "Redirect" do
+
+      newDialogue:runInitializationAction(self);
+      newDialogue = newDialogue:findNextVerifiedDialogue();
+
+    end;
+
+    dialogue = newDialogue;
+    dialogueChangedEvent:Fire();
+
+    if dialogue then
+
+      self:renderDialogue();
+
+    else
+
+      self:cleanup();
+
+    end;
+
+  end;
+
+  local function setContinueDialogueFunction(self: Client, newFunction: (() -> ())?): ()
+
+    continueDialogueFunction.OnInvoke = newFunction or function() end;
+
+  end;
+
+  local function renderDialogue(self: Client): ()
+
+    assert(dialogue, "[Dialogue Maker] Cannot render dialogue without a dialogue set.");
+
+    local newDialogueGUI = dialogueGUI or Instance.new("ScreenGui");
+    newDialogueGUI.Name = "Dialogue";
+    dialogueGUI = newDialogueGUI;
+
+    local newReactRoot = reactRoot or ReactRoblox.createRoot(newDialogueGUI);
+    reactRoot = newReactRoot;
+    newDialogueGUI.Parent = player.PlayerGui;
+
+    local conversation = Conversation.getFromDialogue(dialogue);
+    local themeModuleScript = dialogue:getSettings().theme.moduleScript or conversation:getSettings().theme.moduleScript or clientSettings.theme.moduleScript;
+    local theme = require(themeModuleScript) :: any;
+    newReactRoot:render(React.createElement(theme, {
+      dialogue = dialogue;
+      client = self;
+      conversation = conversation;
+    }));
+
   end;
 
   local function getSettings(self: Client): ClientSettings
 
-    return table.clone(settings);
+    return clientSettings;
 
   end;
 
@@ -252,26 +169,17 @@ function Client.new(clientSettings: ConstructorClientSettings): Client
   end;
 
   local client: Client = {
-    freezePlayer = freezePlayer;
-    interact = interact;
+    cleanup = cleanup;
+    getDialogue = getDialogue;
+    setDialogue = setDialogue;
+    renderDialogue = renderDialogue;
+    continueDialogue = continueDialogue;
     getSettings = getSettings;
     setSettings = setSettings;
-    unfreezePlayer = unfreezePlayer;
-    getConversation = getConversation;
-    setConversation = setConversation;
+    setContinueDialogueFunction = setContinueDialogueFunction;
+    DialogueChanged = dialogueChangedEvent.Event;
     SettingsChanged = settingsChangedEvent.Event;
-    ConversationChanged = conversationChangedEvent.Event;
   };
-
-  player.CharacterRemoving:Connect(function()
-
-    conversation = nil;
-
-  end);
-
-  client.SettingsChanged:Connect(function()
-  
-  end);
 
   return client;
 
