@@ -41,4 +41,4 @@ react-roblox = { wally = "jsdotlua/react-roblox", version = "^17.2.1" }
 
 [dependencies]
 dialogue_maker_types = { name = "dialoguemaker/types", version = "^0.1.4" }
-conversation = { name = "dialoguemaker/conversation", version = "^0.1.1" }
+conversation = { name = "dialoguemaker/conversation", version = "^0.1.4" }
