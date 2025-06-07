@@ -3,20 +3,25 @@
 local Players = game:GetService("Players");
 
 local packages = script.Parent.roblox_packages;
-local Conversation = require(packages.conversation);
 local React = require(packages.react);
 local ReactRoblox = require(packages["react-roblox"]);
-local DialogueMakerTypes = require(packages.dialogue_maker_types)
+local DialogueMakerTypes = require(packages.DialogueMakerTypes)
 
 type Dialogue = DialogueMakerTypes.Dialogue;
 type Client = DialogueMakerTypes.Client;
 type ClientSettings = DialogueMakerTypes.ClientSettings;
 type Conversation = DialogueMakerTypes.Conversation;
 type ConstructorClientSettings = DialogueMakerTypes.ConstructorClientSettings;
+type OptionalClientConstructorProperties = DialogueMakerTypes.OptionalClientConstructorProperties;
 
 local Client = {
-  sharedClient = nil :: Client?;
   defaultSettings = {
+    theme = {
+      component = nil :: never;
+    };
+    typewriter = {
+      soundTemplate = nil;
+    };
     keybinds = {
       interactKey = nil;
       interactKeyGamepad = nil;
@@ -24,162 +29,90 @@ local Client = {
   } :: ClientSettings;
 };
 
-function Client:waitForSharedClient(): Client
+export type ConstructorProperties = {
+  settings: ConstructorClientSettings;
+  dialogue: Dialogue;
+  conversation: Conversation;
+  dialogueGUI: ScreenGui?;
+  reactRoot: ReactRoblox.RootType?;
+  continueDialogueBindableFunction: BindableFunction?;
+}
 
-  repeat task.wait() until Client.sharedClient;
-
-  return self:getSharedClient();
-
-end;
-
-function Client:getSharedClient(): Client
-
-  assert(Client.sharedClient, "[Dialogue Maker] Shared dialogue client not set.");
-
-  return Client.sharedClient;
-
-end;
-
-function Client:setSharedClient(client: Client?): ()
-
-  assert(not Client.sharedClient, "[Dialogue Maker] Shared dialogue client already set.");
-  Client.sharedClient = client;
-
-end;
-
-function Client.new(clientSettingOverrides: ConstructorClientSettings): Client
-
-  local player = Players.LocalPlayer;
-  local clientSettings: ClientSettings = {
-    theme = clientSettingOverrides.theme;
-    keybinds = {
-      interactKey = if clientSettingOverrides and clientSettingOverrides.keybinds then clientSettingOverrides.keybinds.interactKey else Client.defaultSettings.keybinds.interactKey; 
-      interactKeyGamepad = if clientSettingOverrides and clientSettingOverrides.keybinds then clientSettingOverrides.keybinds.interactKeyGamepad else Client.defaultSettings.keybinds.interactKeyGamepad; 
-    };
-  };
-
-  local settingsChangedEvent = Instance.new("BindableEvent");
-  local dialogueChangedEvent = Instance.new("BindableEvent");
-  local continueDialogueFunction = Instance.new("BindableFunction");
-
-  local reactRoot: ReactRoblox.RootType? = nil;
-  local dialogueGUI: ScreenGui? = nil;
-  local dialogue: Dialogue? = nil;
+function Client.new(properties: ConstructorProperties): Client
 
   local function continueDialogue(self: Client): ()
 
-    continueDialogueFunction:Invoke();
+    self.continueDialogueBindableFunction:Invoke();
 
   end;
 
   local function cleanup(self: Client): ()
 
-    if reactRoot then
-
-      reactRoot:unmount();
-      reactRoot = nil;
-
-    end;
-
-    if dialogueGUI then
-
-      dialogueGUI:Destroy();
-      dialogueGUI = nil;
-
-    end;
+    self.reactRoot:unmount();
+    self.dialogueGUI:Destroy();
+    self.continueDialogueBindableFunction:Destroy();
 
   end;
 
-  local function getDialogue(self: Client): Dialogue?
+  local function clone(self: Client, newProperties: OptionalClientConstructorProperties?): Client
 
-    return dialogue;
-
-  end;
-
-  local function setDialogue(self: Client, newDialogue: Dialogue?): ()
-
-    if dialogue == newDialogue or (dialogue and newDialogue and dialogue.moduleScript == newDialogue.moduleScript) then
-
-      return;
-
-    end;
-
-    while newDialogue and newDialogue.type == "Redirect" do
-
-      newDialogue:runInitializationAction(self);
-      newDialogue = newDialogue:findNextVerifiedDialogue();
-
-    end;
-
-    dialogue = newDialogue;
-    dialogueChangedEvent:Fire();
-
-    if dialogue then
-
-      self:renderDialogue();
-
-    else
-
-      self:cleanup();
-
-    end;
+    return Client.new(
+      if newProperties then {
+        settings = newProperties.settings or self.settings,
+        dialogue = newProperties.dialogue or self.dialogue,
+        conversation = newProperties.conversation or self.conversation,
+        continueDialogueBindableFunction = newProperties.continueDialogueBindableFunction or self.continueDialogueBindableFunction,
+        reactRoot = newProperties.reactRoot or self.reactRoot,
+        dialogueGUI = newProperties.dialogueGUI or self.dialogueGUI,
+      } else {
+        settings = self.settings,
+        dialogue = self.dialogue,
+        conversation = self.conversation,
+        continueDialogueBindableFunction = self.continueDialogueBindableFunction,
+        reactRoot = self.reactRoot,
+        dialogueGUI = self.dialogueGUI,
+      }
+    );
 
   end;
 
-  local function setContinueDialogueFunction(self: Client, newFunction: (() -> ())?): ()
+  local clientSettings: ClientSettings = {
+    theme = {
+      component = properties.settings.theme.component;
+    };
+    typewriter = if properties.settings.typewriter then {
+      soundTemplate = properties.settings.typewriter.soundTemplate or Client.defaultSettings.typewriter.soundTemplate;
+    } else Client.defaultSettings.typewriter;
+    keybinds = if properties.settings.keybinds then {
+      interactKey = properties.settings.keybinds.interactKey or Client.defaultSettings.keybinds.interactKey; 
+      interactKeyGamepad = properties.settings.keybinds.interactKeyGamepad or Client.defaultSettings.keybinds.interactKeyGamepad; 
+    } else Client.defaultSettings.keybinds;
+  };
 
-    continueDialogueFunction.OnInvoke = newFunction or function() end;
+  local dialogueGUI = properties.dialogueGUI or Instance.new("ScreenGui");
+  dialogueGUI.Name = "Dialogue";
 
-  end;
-
-  local function renderDialogue(self: Client): ()
-
-    assert(dialogue, "[Dialogue Maker] Cannot render dialogue without a dialogue set.");
-
-    local newDialogueGUI = dialogueGUI or Instance.new("ScreenGui");
-    newDialogueGUI.Name = "Dialogue";
-    dialogueGUI = newDialogueGUI;
-
-    local newReactRoot = reactRoot or ReactRoblox.createRoot(newDialogueGUI);
-    reactRoot = newReactRoot;
-    newDialogueGUI.Parent = player.PlayerGui;
-
-    local conversation = Conversation.getFromDialogue(dialogue);
-    local themeModuleScript = dialogue:getSettings().theme.moduleScript or conversation:getSettings().theme.moduleScript or clientSettings.theme.moduleScript;
-    local theme = require(themeModuleScript) :: any;
-    newReactRoot:render(React.createElement(theme, {
-      dialogue = dialogue;
-      client = self;
-      conversation = conversation;
-    }));
-
-  end;
-
-  local function getSettings(self: Client): ClientSettings
-
-    return clientSettings;
-
-  end;
-
-  local function setSettings(self: Client, newSettings: ClientSettings): ()
-
-    clientSettings = newSettings;
-    settingsChangedEvent:Fire();
-
-  end;
+  local player = Players.LocalPlayer;
+  local reactRoot = properties.reactRoot or ReactRoblox.createRoot(dialogueGUI);
+  dialogueGUI.Parent = player.PlayerGui;
 
   local client: Client = {
+    settings = clientSettings;
+    dialogue = properties.dialogue;
+    conversation = properties.conversation;
+    continueDialogueBindableFunction = properties.continueDialogueBindableFunction or Instance.new("BindableFunction");
+    reactRoot = reactRoot;
+    dialogueGUI = dialogueGUI;
+    clone = clone;
     cleanup = cleanup;
-    getDialogue = getDialogue;
-    setDialogue = setDialogue;
-    renderDialogue = renderDialogue;
     continueDialogue = continueDialogue;
-    getSettings = getSettings;
-    setSettings = setSettings;
-    setContinueDialogueFunction = setContinueDialogueFunction;
-    DialogueChanged = dialogueChangedEvent.Event;
-    SettingsChanged = settingsChangedEvent.Event;
   };
+
+  local themeComponent = properties.dialogue.settings.theme.component or properties.conversation.settings.theme.component or client.settings.theme.component;
+  local themeElement = React.createElement(themeComponent, {
+    client = client;
+  });
+  reactRoot:render(themeElement);
 
   return client;
 
