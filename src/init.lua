@@ -10,7 +10,6 @@ local DialogueMakerTypes = require(packages.DialogueMakerTypes)
 type Dialogue = DialogueMakerTypes.Dialogue;
 type Client = DialogueMakerTypes.Client;
 type ClientSettings = DialogueMakerTypes.ClientSettings;
-type Conversation = DialogueMakerTypes.Conversation;
 type ConstructorClientSettings = DialogueMakerTypes.ConstructorClientSettings;
 type OptionalClientConstructorProperties = DialogueMakerTypes.OptionalClientConstructorProperties;
 
@@ -32,13 +31,14 @@ local Client = {
 export type ConstructorProperties = {
   settings: ConstructorClientSettings;
   dialogue: Dialogue;
-  conversation: Conversation;
   dialogueGUI: ScreenGui?;
   reactRoot: ReactRoblox.RootType?;
   continueDialogueBindableFunction: BindableFunction?;
 }
 
 function Client.new(properties: ConstructorProperties): Client
+
+  local conversation = properties.dialogue:getConversation();
 
   local function continueDialogue(self: Client): ()
 
@@ -56,23 +56,15 @@ function Client.new(properties: ConstructorProperties): Client
 
   local function clone(self: Client, newProperties: OptionalClientConstructorProperties?): Client
 
-    return Client.new(
-      if newProperties then {
-        settings = newProperties.settings or self.settings,
-        dialogue = newProperties.dialogue or self.dialogue,
-        conversation = newProperties.conversation or self.conversation,
-        continueDialogueBindableFunction = newProperties.continueDialogueBindableFunction or self.continueDialogueBindableFunction,
-        reactRoot = newProperties.reactRoot or self.reactRoot,
-        dialogueGUI = newProperties.dialogueGUI or self.dialogueGUI,
-      } else {
-        settings = self.settings,
-        dialogue = self.dialogue,
-        conversation = self.conversation,
-        continueDialogueBindableFunction = self.continueDialogueBindableFunction,
-        reactRoot = self.reactRoot,
-        dialogueGUI = self.dialogueGUI,
-      }
-    );
+    local clonedProperties = if newProperties then {
+      settings = newProperties.settings or self.settings,
+      dialogue = newProperties.dialogue or self.dialogue,
+      continueDialogueBindableFunction = newProperties.continueDialogueBindableFunction or self.continueDialogueBindableFunction,
+      reactRoot = newProperties.reactRoot or self.reactRoot,
+      dialogueGUI = newProperties.dialogueGUI or self.dialogueGUI,
+    } else properties;
+
+    return Client.new(clonedProperties);
 
   end;
 
@@ -99,7 +91,6 @@ function Client.new(properties: ConstructorProperties): Client
   local client: Client = {
     settings = clientSettings;
     dialogue = properties.dialogue;
-    conversation = properties.conversation;
     continueDialogueBindableFunction = properties.continueDialogueBindableFunction or Instance.new("BindableFunction");
     reactRoot = reactRoot;
     dialogueGUI = dialogueGUI;
@@ -108,7 +99,7 @@ function Client.new(properties: ConstructorProperties): Client
     continueDialogue = continueDialogue;
   };
 
-  local themeComponent = properties.dialogue.settings.theme.component or properties.conversation.settings.theme.component or client.settings.theme.component;
+  local themeComponent = properties.dialogue.settings.theme.component or conversation.settings.theme.component or client.settings.theme.component;
   local themeElement = React.createElement(themeComponent, {
     client = client;
   });
