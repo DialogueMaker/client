@@ -20,6 +20,9 @@ local Client = {
     };
     typewriter = {
       soundTemplate = nil;
+      canPlayerSkipDelay = true;
+      shouldShowResponseWhileTyping = true;
+      characterDelaySeconds = 0.05;
     };
     keybinds = {
       interactKey = nil;
@@ -74,6 +77,9 @@ function Client.new(properties: ConstructorProperties): Client
     };
     typewriter = if properties.settings.typewriter then {
       soundTemplate = properties.settings.typewriter.soundTemplate or Client.defaultSettings.typewriter.soundTemplate;
+      canPlayerSkipDelay = properties.settings.typewriter.canPlayerSkipDelay ~= nil and properties.settings.typewriter.canPlayerSkipDelay or Client.defaultSettings.typewriter.canPlayerSkipDelay;
+      shouldShowResponseWhileTyping = properties.settings.typewriter.shouldShowResponseWhileTyping ~= nil and properties.settings.typewriter.shouldShowResponseWhileTyping or Client.defaultSettings.typewriter.shouldShowResponseWhileTyping;
+      characterDelaySeconds = properties.settings.typewriter.characterDelaySeconds ~= nil and properties.settings.typewriter.characterDelaySeconds or Client.defaultSettings.typewriter.characterDelaySeconds;
     } else Client.defaultSettings.typewriter;
     keybinds = if properties.settings.keybinds then {
       interactKey = properties.settings.keybinds.interactKey or Client.defaultSettings.keybinds.interactKey; 
@@ -90,6 +96,7 @@ function Client.new(properties: ConstructorProperties): Client
 
   local client: Client = {
     settings = clientSettings;
+    conversation = conversation;
     dialogue = properties.dialogue;
     continueDialogueBindableFunction = properties.continueDialogueBindableFunction or Instance.new("BindableFunction");
     reactRoot = reactRoot;
