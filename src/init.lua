@@ -39,6 +39,9 @@ export type ConstructorProperties = {
   continueDialogueBindableFunction: BindableFunction?;
 }
 
+--[[
+  Creates a new Client object and associated GUI elements if necessary.
+]]
 function Client.new(properties: ConstructorProperties): Client
 
   local conversation = properties.dialogue:getConversation();
