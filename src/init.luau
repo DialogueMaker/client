@@ -8,6 +8,7 @@ local ReactRoblox = require(packages["react-roblox"]);
 local DialogueMakerTypes = require(packages.DialogueMakerTypes)
 
 type Dialogue = DialogueMakerTypes.Dialogue;
+type DialogueGui = DialogueMakerTypes.DialogueGui;
 type Client = DialogueMakerTypes.Client;
 type ClientSettings = DialogueMakerTypes.ClientSettings;
 type ConstructorClientSettings = DialogueMakerTypes.ConstructorClientSettings;
@@ -19,7 +20,6 @@ local Client = {
       component = nil :: never;
     };
     typewriter = {
-      soundTemplate = nil;
       canPlayerSkipDelay = true;
       shouldShowResponseWhileTyping = true;
       characterDelaySeconds = 0.05;
@@ -34,7 +34,7 @@ local Client = {
 export type ConstructorProperties = {
   settings: ConstructorClientSettings;
   dialogue: Dialogue;
-  dialogueGUI: ScreenGui?;
+  dialogueGUI: DialogueGui?;
   reactRoot: ReactRoblox.RootType?;
   continueDialogueBindableFunction: BindableFunction?;
 }
@@ -79,7 +79,6 @@ function Client.new(properties: ConstructorProperties): Client
       component = properties.settings.theme.component;
     };
     typewriter = if properties.settings.typewriter then {
-      soundTemplate = properties.settings.typewriter.soundTemplate or Client.defaultSettings.typewriter.soundTemplate;
       canPlayerSkipDelay = properties.settings.typewriter.canPlayerSkipDelay ~= nil and properties.settings.typewriter.canPlayerSkipDelay or Client.defaultSettings.typewriter.canPlayerSkipDelay;
       shouldShowResponseWhileTyping = properties.settings.typewriter.shouldShowResponseWhileTyping ~= nil and properties.settings.typewriter.shouldShowResponseWhileTyping or Client.defaultSettings.typewriter.shouldShowResponseWhileTyping;
       characterDelaySeconds = properties.settings.typewriter.characterDelaySeconds ~= nil and properties.settings.typewriter.characterDelaySeconds or Client.defaultSettings.typewriter.characterDelaySeconds;
@@ -90,12 +89,36 @@ function Client.new(properties: ConstructorProperties): Client
     } else Client.defaultSettings.keybinds;
   };
 
-  local dialogueGUI = properties.dialogueGUI or Instance.new("ScreenGui");
-  dialogueGUI.Name = "Dialogue";
+  local dialogueGUI = properties.dialogueGUI; 
+  if not dialogueGUI then
 
-  local player = Players.LocalPlayer;
+    local player = Players.LocalPlayer;
+    local newDialogueGui = Instance.new("ScreenGui");
+    newDialogueGui.Name = "Dialogue";
+    newDialogueGui.Parent = player.PlayerGui;
+    dialogueGUI = newDialogueGui;
+    
+  end;
+  
+  assert(dialogueGUI, "Dialogue GUI must be provided or created.");
+    
+  if dialogueGUI:IsA("BillboardGui") then
+
+    if not dialogueGUI.Adornee then
+
+      warn("BillboardGui should have an adornee set. Input events may not work correctly without it.");
+    
+    end;
+
+    if not dialogueGUI:IsDescendantOf(Players.LocalPlayer.PlayerGui) then
+
+      warn("BillboardGui should be a descendant of PlayerGui for proper input handling.");
+    
+    end;
+
+  end;
+
   local reactRoot = properties.reactRoot or ReactRoblox.createRoot(dialogueGUI);
-  dialogueGUI.Parent = player.PlayerGui;
 
   local client: Client = {
     settings = clientSettings;
