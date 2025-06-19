@@ -22,7 +22,7 @@ local Client = {
     typewriter = {
       canPlayerSkipDelay = true;
       shouldShowResponseWhileTyping = true;
-      characterDelaySeconds = 0.05;
+      characterDelaySeconds = 0.025;
     };
     keybinds = {
       interactKey = nil;
